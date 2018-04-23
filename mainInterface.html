@@ -1,0 +1,168 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz</title>
+    <link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.2.2/css/bootstrap-combined.min.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" media="screen" href="http://tarruda.github.com/bootstrap-datetimepicker/assets/css/bootstrap-datetimepicker.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.0/jquery.min.js"></script>
+    <link href="assets/css/bootstrap.css" rel="stylesheet">
+    <link href="assets/css/font-awesome.css" rel="stylesheet">
+    <link href="assets/css/custom.css" rel="stylesheet">
+   <link href="http://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet" type="text/css">
+</head>
+<body style="background-color: lightblue" onload="pollQuestion(); start()">
+<style>
+	.panel-body{
+		text-align: center;
+	}
+        .panel-heading{ 
+                text-align: center;
+        }
+	.questionBox {
+		margin-top: 20px;
+	}
+</style>
+<div class="row questionBox">
+                     <div class="col-md-12 col-sm-4">
+                         <div class="panel panel-primary">
+                             <div id="QID" class="panel-heading">
+                                 <i class="fa fa-clock-o"> </i><span id="Time">&nbsp 60 &nbsp </span><i class="fa fa-trophy"></i> <span id="score">0</span>
+				 <button id="leaderBoard" style="float:right; background: rgb(66, 139, 202);" data-toggle="dropdown" class="btn btn-primary dropdown-toggle">
+					<i class="fa fa-star-o"></i>
+				</button>
+				</div>
+				<div class="panel-body">
+	                                 <p id="Question">Test Frage 1</p>
+				</div>
+                         </div>
+                     </div>
+                 </div>
+
+	<div class="row">
+                     <div class="col-md-6 col-sm-4">
+                         <div class="panel panel-primary">
+                             <div id="Answ1" onclick="processAnswer('Answ1')" class="panel-heading">
+                                 Test Antwort 1
+                             </div>
+                         </div>
+                     </div>
+                     <div class="col-md-6 col-sm-4">
+                         <div class="panel panel-primary">
+                             <div id="Answ2" onclick="processAnswer('Answ2')" class="panel-heading">
+                                 Test Antwort 2
+                             </div>
+                         </div>
+                     </div>
+                     <div class="col-md-6 col-sm-4">
+                         <div class="panel panel-primary">
+                             <div id="Answ3" onclick="processAnswer('Answ3')" class="panel-heading">
+                                 Test Antwort 3
+                             </div>
+                         </div>
+                     </div>
+                     <div class="col-md-6 col-sm-4">
+                         <div class="panel panel-primary">
+                             <div id="Answ4" onclick="processAnswer('Answ4')" class="panel-heading">
+                                 Test Antwort 4
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+
+
+                 </div>	
+
+<script>
+	var Points = 0;
+	var isAnswered = false;
+	function pollQuestion(){
+			$.ajax({url: "getQuestion.php",
+				type: "GET",
+				success: function(data){
+					data = JSON.parse(data);
+					console.log(data);
+					var Answers = shuffleArray([data.Answ1, data.Answ2, data.Answ3, data.Answ4]);
+					$("#QID").attr("name", data.QuestID.split("=")[1]);
+					$("#Question").html(data.Question);
+					$("#Answ1").html(Answers[0]);
+					$("#Answ2").html(Answers[1]);
+					$("#Answ3").html(Answers[2]);
+					$("#Answ4").html(Answers[3]);
+                                        $("#Answ1").attr("name", encodeURI(Answers[0]));
+                                        $("#Answ2").attr("name", encodeURI(Answers[1]));
+                                        $("#Answ3").attr("name",encodeURI( Answers[2]));
+                                        $("#Answ4").attr("name",encodeURI(Answers[3]));
+
+					}
+				});
+	}
+
+	function processAnswer(Answer){
+			if(!isAnswered){
+			isAnswered = true;
+                        $.ajax({url: "evalQuestion.php",
+                                type: "GET",
+				data: {"ID": $("#QID").attr("name"), "Answ": $("#" + Answer).html()},
+                                success: function(data){
+                                        data = JSON.parse(data);
+                                        console.log(data);
+					if(data.Correct){
+						$("#" + Answer).css("background-color", "green");
+						Points += 5;
+						Time += 12;
+						$("#score").html(Points);
+					}else{
+						$("#" + Answer).css("background-color", "red");
+                                                $("[name=\"" + encodeURI(data.Answ) + "\"]").css("background-color", "green");
+						Time -= 8;
+					}
+					setTimeout(function(){pollQuestion(); $("[name=\"" + encodeURI(data.Answ) + "\"]").css("background-color", "#428bca");$("#" + Answer).css("background-color", "#428bca"); isAnswered = false}, 2000);
+					}
+                                });
+			}
+
+	}
+	var Time = 60;
+	var Timer= setInterval(countDown, 1000);
+
+	function countDown(){
+		Time--;
+		$("#Time").html(Time);
+		console.log(Time);
+		if(Time <= 0){ //>
+			console.log("Stopped");
+			clearInterval(Timer);
+			$("#Time").html("Done");
+			isAnswered = true;
+			writeScore();
+		}else{
+			isAnswered = false;
+		}
+
+	}
+
+	function writeScore(){
+		$.ajax({url: "writeScore.php",
+                                type: "POST",
+                                data: {"Points": Points, "UserName": "TestUser"},
+                                success: function(data){
+					console.log(data);
+                                        }
+                                });
+
+	}
+
+	function shuffleArray(array) {
+ 	   for (var i = array.length - 1; i > 0; i--) {
+ 	   var j = Math.floor(Math.random() * (i + 1));
+	   var temp = array[i];
+           array[i] = array[j];
+           array[j] = temp;
+        }
+        return array;
+        }
+</script>
+
+</body>
+</html>
